@@ -1,5 +1,6 @@
 import { findNodesInObject, mergeNodes, KV_KEY } from "./utils.js";
-import { loadAll } from "js-yaml";
+import { parseYaml, findNodesInObject, mergeNodes, KV_KEY } from "./utils.js";
+
 
 export async function onRequestPost(context) {
   const form = await context.request.formData();
