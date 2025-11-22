@@ -1,36 +1,85 @@
-import { loadAll } from "js-yaml";
-
 export const KV_KEY = "CLASH_SUB_NODES";
 
-// 递归查找 proxies
-export function findNodesInObject(obj) {
-  const found = [];
+/**
+ * 一个简单的 YAML → JS 转换器
+ * 不支持全部 YAML，但足够解析 Clash 节点格式
+ */
+export function parseYaml(yaml) {
+  const lines = yaml.split(/\r?\n/);
+  let obj = {};
+  let stack = [{ indent: -1, value: obj }];
 
-  function isNodeArray(arr) {
-    if (!Array.isArray(arr)) return false;
-    if (arr.length === 0) return false;
-    return arr.every(el =>
-      el &&
-      typeof el === "object" &&
-      "name" in el &&
-      (("server" in el) || ("type" in el) || ("port" in el))
-    );
-  }
+  const parseValue = v => {
+    if (v === "true") return true;
+    if (v === "false") return false;
+    if (/^\d+$/.test(v)) return Number(v);
+    return v;
+  };
 
-  function walk(x) {
-    if (Array.isArray(x)) {
-      if (isNodeArray(x)) {
-        x.forEach(n => found.push(n));
-      } else x.forEach(walk);
-    } else if (x && typeof x === "object") {
-      for (const k in x) {
-        const v = x[k];
-        if (isNodeArray(v)) v.forEach(n => found.push(n));
-        else walk(v);
+  for (const line of lines) {
+    if (!line.trim() || line.trim().startsWith("#")) continue;
+
+    const indent = line.match(/^\s*/)[0].length;
+    const trimmed = line.trim();
+
+    const parent = stack.filter(s => s.indent < indent).slice(-1)[0];
+
+    // list item
+    if (trimmed.startsWith("- ")) {
+      const value = trimmed.slice(2).trim();
+
+      if (!Array.isArray(parent.value)) {
+        parent.value[parent.lastKey] = [];
+        parent.value = parent.value[parent.lastKey];
+        stack.push({ indent, value: parent.value });
+      }
+
+      if (value.includes(": ")) {
+        // object inline
+        const [k, v] = value.split(/:\s(.+)/);
+        const obj = { [k]: parseValue(v) };
+        parent.value.push(obj);
+        stack.push({ indent, value: obj, lastKey: k });
+      } else {
+        parent.value.push(parseValue(value));
+      }
+      continue;
+    }
+
+    // key: value
+    const kv = trimmed.match(/^([^:]+):\s*(.*)$/);
+    if (kv) {
+      const [, key, rawValue] = kv;
+
+      if (rawValue === "") {
+        // nested object
+        parent.value[key] = {};
+        stack.push({ indent, value: parent.value[key], lastKey: key });
+      } else {
+        parent.value[key] = parseValue(rawValue);
       }
     }
   }
 
+  return obj;
+}
+
+/* --------------------------
+   下面代码与之前相同
+--------------------------- */
+
+export function findNodesInObject(obj) {
+  const found = [];
+
+  function walk(x) {
+    if (Array.isArray(x)) {
+      if (x.length > 0 && x.every(e => e && e.name)) {
+        x.forEach(e => found.push(e));
+      } else x.forEach(walk);
+    } else if (x && typeof x === "object") {
+      for (const k in x) walk(x[k]);
+    }
+  }
   walk(obj);
   return found;
 }
@@ -38,38 +87,30 @@ export function findNodesInObject(obj) {
 export function mergeNodes(existingMap, newNodes) {
   const map = { ...existingMap };
   for (const n of newNodes) {
-    if (!n || typeof n !== "object" || !n.name) continue;
-    map[n.name] = n;
+    if (n.name) map[n.name] = n;
   }
   return map;
 }
 
 export function buildSubscriptionYaml(nodesMap) {
-  const proxies = Object.values(nodesMap);
-  let yaml = `proxies:\n`;
-
-  for (const p of proxies) {
-    yaml += `  - name: "${p.name}"\n`;
-
-    for (const [k, v] of Object.entries(p)) {
-      if (k === "name") continue;
-
-      if (v === null) yaml += `    ${k}: null\n`;
-      else if (typeof v === "object") {
-        yaml += `    ${k}:\n`;
-        for (const [kk, vv] of Object.entries(v)) {
-          yaml += `      ${kk}: ${JSON.stringify(vv)}\n`;
+  return (
+    "proxies:\n" +
+    Object.values(nodesMap)
+      .map(n => {
+        let s = `  - name: "${n.name}"\n`;
+        for (const k in n) {
+          if (k === "name") continue;
+          s += `    ${k}: ${JSON.stringify(n[k])}\n`;
         }
-      } else yaml += `    ${k}: ${JSON.stringify(v)}\n`;
-    }
-  }
-
-  return yaml;
+        return s;
+      })
+      .join("")
+  );
 }
 
 export function base64Encode(str) {
   const bytes = new TextEncoder().encode(str);
-  let binary = "";
-  bytes.forEach(b => binary += String.fromCharCode(b));
-  return btoa(binary);
+  let bin = "";
+  bytes.forEach(b => (bin += String.fromCharCode(b)));
+  return btoa(bin);
 }
