@@ -1,45 +1,49 @@
-import { findNodesInObject, mergeNodes, KV_KEY } from "./utils.js";
-import { parseYaml, findNodesInObject, mergeNodes, KV_KEY } from "./utils.js";
-
+import {
+  parseYaml,
+  findNodesInObject,
+  mergeNodes,
+  KV_KEY
+} from "./utils.js";
 
 export async function onRequestPost(context) {
-  const form = await context.request.formData();
-  const files = [...form.values()].filter(v => v instanceof File);
+  const formData = await context.request.formData();
+  const kv = context.env.CLASH_KV;
 
-  if (files.length === 0) {
-    return new Response(JSON.stringify({ ok: false, msg: "No file" }), { status: 400 });
-  }
+  // 读取现有节点
+  let existingRaw = await kv.get(KV_KEY);
+  let existingMap = existingRaw ? JSON.parse(existingRaw) : {};
 
-  // load existing
-  let existing = {};
-  const raw = await context.env.SUBS_KV.get(KV_KEY);
-  if (raw) existing = JSON.parse(raw);
-
-  let totalNew = 0;
+  const files = formData.getAll("files");
+  let importedCount = 0;
 
   for (const file of files) {
     const text = await file.text();
-    try {
-      const docs = [];
-      loadAll(text, d => d && docs.push(d));
 
-      for (const doc of docs) {
-        const nodes = findNodesInObject(doc);
-        if (nodes.length > 0) {
-          existing = mergeNodes(existing, nodes);
-          totalNew += nodes.length;
-        }
+    try {
+      // 使用内置的 YAML 解析器
+      const parsed = parseYaml(text);
+      const nodes = findNodesInObject(parsed);
+
+      if (nodes.length > 0) {
+        existingMap = mergeNodes(existingMap, nodes);
+        importedCount += nodes.length;
       }
     } catch (e) {
-      console.warn("YAML parse failed", e);
+      console.log("YAML parse error:", e);
     }
   }
 
-  await context.env.SUBS_KV.put(KV_KEY, JSON.stringify(existing));
+  // 更新 KV
+  await kv.put(KV_KEY, JSON.stringify(existingMap));
 
-  return new Response(JSON.stringify({
-    ok: true,
-    count: Object.keys(existing).length,
-    added: totalNew
-  }), { headers: { "Content-Type": "application/json" } });
+  return new Response(
+    JSON.stringify({
+      message: "Upload OK",
+      imported: importedCount,
+      total: Object.keys(existingMap).length
+    }),
+    {
+      headers: { "Content-Type": "application/json" }
+    }
+  );
 }
