@@ -1,9 +1,0 @@
-name = "clash-subscription-pages"
-compatibility_date = "2025-01-01"
-
-kv_namespaces = [
-  { binding = "SUBS_KV", id = "YAML_KV_ID" }
-]
-
-[site]
-bucket = "./public"
