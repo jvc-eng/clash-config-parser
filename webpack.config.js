@@ -14,10 +14,11 @@ module.exports = {
       filename: 'index.html',
     }),
   ],
+  // 移除 babel-loader 配置，使用简单的配置
+  mode: 'production',
   devServer: {
     static: './dist',
     port: 3000,
     open: true,
   },
-  mode: 'production',
 };
