@@ -26,15 +26,16 @@ document.getElementById("uploadBtn").onclick = async () => {
   if (!files.length) return alert("请选择文件");
 
   const fd = new FormData();
-  [...files].forEach(f => fd.append("file", f));
+  [...files].forEach(f => fd.append("files", f));  // ★★ 修正字段名
 
   document.getElementById("status").innerText = "上传中...";
 
   const res = await fetch("/upload", { method: "POST", body: fd });
   const j = await res.json();
 
-  if (j.ok) {
-    document.getElementById("status").innerText = "上传成功，当前节点：" + j.count;
+  if (j.message) {
+    document.getElementById("status").innerText =
+      "上传成功，当前节点：" + j.total;
     loadNodes();
   } else {
     document.getElementById("status").innerText = "错误：" + j.msg;
