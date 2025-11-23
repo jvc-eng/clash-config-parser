@@ -1,5 +1,5 @@
 async function loadNodes() {
-  const res = await fetch("/functions/list");
+  const res = await fetch("/functions/list.js");
   const j = await res.json();
 
   const list = document.getElementById("nodes");
@@ -30,7 +30,7 @@ document.getElementById("uploadBtn").onclick = async () => {
 
   document.getElementById("status").innerText = "上传中...";
 
-  const res = await fetch("/functions/upload", { method: "POST", body: fd });
+  const res = await fetch("/functions/upload.js", { method: "POST", body: fd });
   const j = await res.json();
 
   if (j.ok) {
@@ -47,17 +47,17 @@ document.getElementById("nodes").onclick = async e => {
 
   if (!confirm("删除节点 " + name + "?")) return;
 
-  await fetch("/functions/delete?name=" + encodeURIComponent(name), { method: "POST" });
+  await fetch("/functions/delete.js?name=" + encodeURIComponent(name), { method: "POST" });
   loadNodes();
 };
 
 document.getElementById("copyBtn").onclick = () => {
-  navigator.clipboard.writeText(location.origin + "/functions/sub");
+  navigator.clipboard.writeText(location.origin + "/functions/sub.js");
   alert("已复制订阅链接");
 };
 
 window.onload = () => {
   loadNodes();
-  document.getElementById("subLink").innerText = location.origin + "/functions/sub";
+  document.getElementById("subLink").innerText = location.origin + "/functions/sub.js";
 };
 
