@@ -1,3 +1,8 @@
+export const config = {
+  runtime: "edge",
+  bodyParsing: false
+};
+
 import {
   parseYaml,
   findNodesInObject,
@@ -9,7 +14,6 @@ export async function onRequestPost(context) {
   const formData = await context.request.formData();
   const kv = context.env.CLASH_KV;
 
-  // 读取现有节点
   let existingRaw = await kv.get(KV_KEY);
   let existingMap = existingRaw ? JSON.parse(existingRaw) : {};
 
@@ -20,7 +24,6 @@ export async function onRequestPost(context) {
     const text = await file.text();
 
     try {
-      // 使用内置的 YAML 解析器
       const parsed = parseYaml(text);
       const nodes = findNodesInObject(parsed);
 
@@ -33,17 +36,13 @@ export async function onRequestPost(context) {
     }
   }
 
-  // 更新 KV
   await kv.put(KV_KEY, JSON.stringify(existingMap));
 
-  return new Response(
-    JSON.stringify({
-      message: "Upload OK",
-      imported: importedCount,
-      total: Object.keys(existingMap).length
-    }),
-    {
-      headers: { "Content-Type": "application/json" }
-    }
-  );
+  return new Response(JSON.stringify({
+    ok: true,
+    imported: importedCount,
+    total: Object.keys(existingMap).length
+  }), {
+    headers: { "Content-Type": "application/json" }
+  });
 }
