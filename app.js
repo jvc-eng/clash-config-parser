@@ -58,6 +58,6 @@ document.getElementById("copyBtn").onclick = () => {
 
 window.onload = () => {
   loadNodes();
-  document.getElementById("subLink").innerText = location.origin + "/functions/sub.js";
+  document.getElementById("subLink").innerText = location.origin + "/sub";
 };
 
